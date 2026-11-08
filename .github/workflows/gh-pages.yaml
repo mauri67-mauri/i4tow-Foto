@@ -1,0 +1,50 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Move the temp-demo-files to ./public/photos/raw2
+        if: ${{ github.event.repository.is_template }}
+        run: |
+          mv ./temp-demo-files/* ./public/photos/raw2/
+          ls -la ./public/photos/raw2/
+
+      - name: Run Optimizer
+        run: npm i --prefix ./optimizer && node ./optimizer/optimizer.js
+
+      - name: Deploy to GitHub Pages (with DEPLOY_TOKEN)
+        id: deploy_with_pat
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.DEPLOY_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./public
+
+      - name: Deploy to GitHub Pages (with GITHUB_TOKEN fallback)
+        if: ${{ steps.deploy_with_pat.outcome == 'failure' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./public
